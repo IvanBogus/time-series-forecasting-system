@@ -1,0 +1,230 @@
+{
+  "linear": {
+    "config": {
+      "trend_type": "linear",
+      "n_points": 240,
+      "noise_std": 0.35,
+      "anomaly_fraction": 0.05,
+      "anomaly_scale": 4.0,
+      "random_seed": 101
+    },
+    "anomaly_detection": {
+      "injected_anomaly_count": 12,
+      "rolling_median_detected_count": 29,
+      "true_positives": 11,
+      "false_positives": 18,
+      "false_negatives": 1,
+      "all_methods": {
+        "z_score": 0,
+        "iqr": 0,
+        "rolling_median": 29
+      }
+    },
+    "forecasting": {
+      "target": "true_trend",
+      "train_size": 192,
+      "test_size": 48,
+      "models": {
+        "local_polynomial_one_step": {
+          "parameters": {
+            "best_window": "all",
+            "best_degree": 1
+          },
+          "metrics": {
+            "MAE": 0.06816666693100948,
+            "RMSE": 0.06903414585336319,
+            "MAPE": 0.3281005411846891,
+            "R2": 0.990067119492064
+          }
+        },
+        "moving_average_one_step": {
+          "parameters": {
+            "best_window": 3
+          },
+          "metrics": {
+            "MAE": 0.20801088983458457,
+            "RMSE": 0.25428524929253854,
+            "MAPE": 1.0001399628677772,
+            "R2": 0.8652311148774257
+          }
+        },
+        "exponential_moving_average_one_step": {
+          "parameters": {
+            "best_span": 3
+          },
+          "metrics": {
+            "MAE": 0.1979067485852637,
+            "RMSE": 0.24581368588351915,
+            "MAPE": 0.9501957346242312,
+            "R2": 0.8740612387300569
+          }
+        },
+        "deep_learning_mlp_one_step": {
+          "parameters": {
+            "backend": "sklearn_mlp",
+            "best_window_size": 7
+          },
+          "metrics": {
+            "MAE": 0.2791458212970248,
+            "RMSE": 0.3460461369966197,
+            "MAPE": 1.3249698949478088,
+            "R2": 0.7504168220298048
+          }
+        }
+      }
+    },
+    "figure": "D:\\SkyBound\\Desktop\\Униk\\3. Data Science\\ЛР1,2 Project\\project_practicum\\my_project\\reports\\figures\\synthetic_linear_verification.png"
+  },
+  "quadratic": {
+    "config": {
+      "trend_type": "quadratic",
+      "n_points": 240,
+      "noise_std": 0.35,
+      "anomaly_fraction": 0.05,
+      "anomaly_scale": 4.0,
+      "random_seed": 202
+    },
+    "anomaly_detection": {
+      "injected_anomaly_count": 12,
+      "rolling_median_detected_count": 41,
+      "true_positives": 12,
+      "false_positives": 29,
+      "false_negatives": 0,
+      "all_methods": {
+        "z_score": 0,
+        "iqr": 1,
+        "rolling_median": 41
+      }
+    },
+    "forecasting": {
+      "target": "true_trend",
+      "train_size": 192,
+      "test_size": 48,
+      "models": {
+        "local_polynomial_one_step": {
+          "parameters": {
+            "best_window": "all",
+            "best_degree": 2
+          },
+          "metrics": {
+            "MAE": 0.04509853255847385,
+            "RMSE": 0.04951798730559823,
+            "MAPE": 0.15391306388326714,
+            "R2": 0.9996875220141882
+          }
+        },
+        "moving_average_one_step": {
+          "parameters": {
+            "best_window": 3
+          },
+          "metrics": {
+            "MAE": 0.33493609996138995,
+            "RMSE": 0.36801573226106127,
+            "MAPE": 1.1594056533487584,
+            "R2": 0.9827405787935887
+          }
+        },
+        "exponential_moving_average_one_step": {
+          "parameters": {
+            "best_span": 3
+          },
+          "metrics": {
+            "MAE": 0.3365935180169754,
+            "RMSE": 0.3694708580762645,
+            "MAPE": 1.1665041514958225,
+            "R2": 0.98260382224498
+          }
+        },
+        "deep_learning_mlp_one_step": {
+          "parameters": {
+            "backend": "sklearn_mlp",
+            "best_window_size": 7
+          },
+          "metrics": {
+            "MAE": 1.2410400338579375,
+            "RMSE": 1.2999336403661987,
+            "MAPE": 4.222739253761939,
+            "R2": 0.784654488622192
+          }
+        }
+      }
+    },
+    "figure": "D:\\SkyBound\\Desktop\\Униk\\3. Data Science\\ЛР1,2 Project\\project_practicum\\my_project\\reports\\figures\\synthetic_quadratic_verification.png"
+  },
+  "exponential": {
+    "config": {
+      "trend_type": "exponential",
+      "n_points": 240,
+      "noise_std": 0.35,
+      "anomaly_fraction": 0.05,
+      "anomaly_scale": 4.0,
+      "random_seed": 303
+    },
+    "anomaly_detection": {
+      "injected_anomaly_count": 12,
+      "rolling_median_detected_count": 18,
+      "true_positives": 10,
+      "false_positives": 8,
+      "false_negatives": 2,
+      "all_methods": {
+        "z_score": 0,
+        "iqr": 0,
+        "rolling_median": 18
+      }
+    },
+    "forecasting": {
+      "target": "true_trend",
+      "train_size": 192,
+      "test_size": 48,
+      "models": {
+        "local_polynomial_one_step": {
+          "parameters": {
+            "best_window": "all",
+            "best_degree": 3
+          },
+          "metrics": {
+            "MAE": 0.14742996493615804,
+            "RMSE": 0.15966908602150348,
+            "MAPE": 0.7509347087015004,
+            "R2": 0.9836551263434241
+          }
+        },
+        "moving_average_one_step": {
+          "parameters": {
+            "best_window": 3
+          },
+          "metrics": {
+            "MAE": 0.30219268743519306,
+            "RMSE": 0.33705296552186564,
+            "MAPE": 1.5629935948471168,
+            "R2": 0.9271656591118947
+          }
+        },
+        "exponential_moving_average_one_step": {
+          "parameters": {
+            "best_span": 3
+          },
+          "metrics": {
+            "MAE": 0.2963324050120652,
+            "RMSE": 0.33511446287606744,
+            "MAPE": 1.5304062931483955,
+            "R2": 0.9280010384918348
+          }
+        },
+        "deep_learning_mlp_one_step": {
+          "parameters": {
+            "backend": "sklearn_mlp",
+            "best_window_size": 7
+          },
+          "metrics": {
+            "MAE": 0.399338577105677,
+            "RMSE": 0.4766181552481161,
+            "MAPE": 2.015286530491709,
+            "R2": 0.8543598719646848
+          }
+        }
+      }
+    },
+    "figure": "D:\\SkyBound\\Desktop\\Униk\\3. Data Science\\ЛР1,2 Project\\project_practicum\\my_project\\reports\\figures\\synthetic_exponential_verification.png"
+  }
+}

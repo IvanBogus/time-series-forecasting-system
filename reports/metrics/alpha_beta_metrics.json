@@ -1,0 +1,24 @@
+{
+  "best_alpha": 0.9,
+  "best_beta": 0.001,
+  "forecast_horizon": 70,
+  "split": {
+    "train_size": 243,
+    "validation_size": 35,
+    "test_size": 70,
+    "selection_data": "train -> validation",
+    "final_fit_data": "train + validation",
+    "final_evaluation_data": "test only"
+  },
+  "alpha_beta_recursive": {
+    "MAE": 0.7768365446561345,
+    "RMSE": 0.8845068205254778,
+    "R2": -22.902830199257444
+  },
+  "alpha_beta_one_step": {
+    "MAE": 0.05029478293186135,
+    "RMSE": 0.06470174828204707,
+    "R2": 0.8720975140810209
+  },
+  "conclusion": "Alpha-beta filter є простим рекурентним методом згладжування. Він добре підходить для короткострокового прогнозування та зменшення шуму, але менш ефективний для довгострокового прогнозу нелінійних трендів. Recursive alpha-beta forecast накопичує похибку через velocity drift, тоді як one-step режим краще підходить для online-згладжування короткострокових змін."
+}
