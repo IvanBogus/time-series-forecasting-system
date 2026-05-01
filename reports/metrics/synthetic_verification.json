@@ -14,10 +14,45 @@
       "true_positives": 11,
       "false_positives": 18,
       "false_negatives": 1,
+      "metrics_by_method": {
+        "z_score": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "F1": 0.0
+        },
+        "iqr": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "F1": 0.0
+        },
+        "rolling_median": {
+          "TP": 11,
+          "FP": 18,
+          "FN": 1,
+          "precision": 0.3793103448275862,
+          "recall": 0.9166666666666666,
+          "F1": 0.5365853658536586
+        },
+        "adaptive_local_mad": {
+          "TP": 8,
+          "FP": 7,
+          "FN": 4,
+          "precision": 0.5333333333333333,
+          "recall": 0.6666666666666666,
+          "F1": 0.5925925925925926
+        }
+      },
       "all_methods": {
         "z_score": 0,
         "iqr": 0,
-        "rolling_median": 29
+        "rolling_median": 29,
+        "adaptive_local_mad": 15
       }
     },
     "forecasting": {
@@ -73,7 +108,7 @@
         }
       }
     },
-    "figure": "D:\\SkyBound\\Desktop\\Униk\\3. Data Science\\ЛР1,2 Project\\project_practicum\\my_project\\reports\\figures\\synthetic_linear_verification.png"
+    "figure": "D:\\SkyBound\\Desktop\\Униk\\1. Data Science\\ЛР1,2 Project\\project_practicum\\time-series-forecasting-system\\reports\\figures\\synthetic_linear_verification.png"
   },
   "quadratic": {
     "config": {
@@ -90,10 +125,45 @@
       "true_positives": 12,
       "false_positives": 29,
       "false_negatives": 0,
+      "metrics_by_method": {
+        "z_score": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "F1": 0.0
+        },
+        "iqr": {
+          "TP": 0,
+          "FP": 1,
+          "FN": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "F1": 0.0
+        },
+        "rolling_median": {
+          "TP": 12,
+          "FP": 29,
+          "FN": 0,
+          "precision": 0.2926829268292683,
+          "recall": 1.0,
+          "F1": 0.45283018867924524
+        },
+        "adaptive_local_mad": {
+          "TP": 12,
+          "FP": 13,
+          "FN": 0,
+          "precision": 0.48,
+          "recall": 1.0,
+          "F1": 0.6486486486486487
+        }
+      },
       "all_methods": {
         "z_score": 0,
         "iqr": 1,
-        "rolling_median": 41
+        "rolling_median": 41,
+        "adaptive_local_mad": 25
       }
     },
     "forecasting": {
@@ -149,7 +219,7 @@
         }
       }
     },
-    "figure": "D:\\SkyBound\\Desktop\\Униk\\3. Data Science\\ЛР1,2 Project\\project_practicum\\my_project\\reports\\figures\\synthetic_quadratic_verification.png"
+    "figure": "D:\\SkyBound\\Desktop\\Униk\\1. Data Science\\ЛР1,2 Project\\project_practicum\\time-series-forecasting-system\\reports\\figures\\synthetic_quadratic_verification.png"
   },
   "exponential": {
     "config": {
@@ -166,10 +236,45 @@
       "true_positives": 10,
       "false_positives": 8,
       "false_negatives": 2,
+      "metrics_by_method": {
+        "z_score": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "F1": 0.0
+        },
+        "iqr": {
+          "TP": 0,
+          "FP": 0,
+          "FN": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "F1": 0.0
+        },
+        "rolling_median": {
+          "TP": 10,
+          "FP": 8,
+          "FN": 2,
+          "precision": 0.5555555555555556,
+          "recall": 0.8333333333333334,
+          "F1": 0.6666666666666667
+        },
+        "adaptive_local_mad": {
+          "TP": 9,
+          "FP": 12,
+          "FN": 3,
+          "precision": 0.42857142857142855,
+          "recall": 0.75,
+          "F1": 0.5454545454545454
+        }
+      },
       "all_methods": {
         "z_score": 0,
         "iqr": 0,
-        "rolling_median": 18
+        "rolling_median": 18,
+        "adaptive_local_mad": 21
       }
     },
     "forecasting": {
@@ -225,6 +330,6 @@
         }
       }
     },
-    "figure": "D:\\SkyBound\\Desktop\\Униk\\3. Data Science\\ЛР1,2 Project\\project_practicum\\my_project\\reports\\figures\\synthetic_exponential_verification.png"
+    "figure": "D:\\SkyBound\\Desktop\\Униk\\1. Data Science\\ЛР1,2 Project\\project_practicum\\time-series-forecasting-system\\reports\\figures\\synthetic_exponential_verification.png"
   }
 }

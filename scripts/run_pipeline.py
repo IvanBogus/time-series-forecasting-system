@@ -1,4 +1,4 @@
-"""Run the first-stage Oschadbank USD time series pipeline."""
+﻿"""Run the first-stage Oschadbank USD time series pipeline."""
 
 from __future__ import annotations
 
@@ -46,6 +46,7 @@ from src.statistics import calculate_basic_statistics
 from src.visualization import (
     save_approximation_selection_plot,
     save_anomalies_plot,
+    save_anomaly_methods_comparison_plot,
     save_cleaned_comparison_plot,
     save_deep_learning_forecast_plot,
     save_forecast_comparison_plot,
@@ -138,9 +139,18 @@ def run_pipeline() -> dict[str, Any]:
     )
     metrics_path = PROJECT_ROOT / "reports" / "metrics" / "basic_statistics.json"
     anomaly_report_path = PROJECT_ROOT / "reports" / "metrics" / "anomaly_report.json"
+    adaptive_anomaly_report_path = (
+        PROJECT_ROOT / "reports" / "metrics" / "adaptive_anomaly_report.json"
+    )
     figure_path = PROJECT_ROOT / "reports" / "figures" / "oschadbank_usd_series.png"
     anomalies_figure_path = (
         PROJECT_ROOT / "reports" / "figures" / "anomalies_detected.png"
+    )
+    adaptive_anomalies_figure_path = (
+        PROJECT_ROOT / "reports" / "figures" / "adaptive_anomalies_detected.png"
+    )
+    anomaly_methods_comparison_path = (
+        PROJECT_ROOT / "reports" / "figures" / "anomaly_methods_comparison.png"
     )
     comparison_figure_path = (
         PROJECT_ROOT / "reports" / "figures" / "cleaned_vs_original.png"
@@ -180,6 +190,7 @@ def run_pipeline() -> dict[str, Any]:
     stats = calculate_basic_statistics(cleaned_data[value_column])
     anomaly_results = run_anomaly_detection(cleaned_data, value_column)
     primary_anomaly_result = anomaly_results["rolling_median"]
+    adaptive_anomaly_result = anomaly_results["adaptive_local_mad"]
     combined_anomaly_mask = None
     for result in anomaly_results.values():
         if combined_anomaly_mask is None:
@@ -232,6 +243,71 @@ def run_pipeline() -> dict[str, Any]:
         encoding="utf-8",
     )
 
+    adaptive_diagnostics = adaptive_anomaly_result.diagnostics
+    adaptive_zero_anomalies = int(
+        (
+            adaptive_anomaly_result.anomaly_mask
+            & cleaned_data[value_column].eq(0)
+        ).sum()
+    )
+    adaptive_total_anomalies = adaptive_anomaly_result.anomaly_count
+    adaptive_non_zero_anomalies = adaptive_total_anomalies - adaptive_zero_anomalies
+
+    def summarize_diagnostic(column_name: str) -> dict[str, float] | None:
+        """Return compact descriptive statistics for an adaptive diagnostic column."""
+        if adaptive_diagnostics is None:
+            return None
+        series = adaptive_diagnostics[column_name]
+        return {
+            "min": float(series.min()),
+            "q25": float(series.quantile(0.25)),
+            "median": float(series.median()),
+            "q75": float(series.quantile(0.75)),
+            "q90": float(series.quantile(0.90)),
+            "q95": float(series.quantile(0.95)),
+            "q99": float(series.quantile(0.99)),
+            "max": float(series.max()),
+        }
+
+    adaptive_anomaly_report = {
+        "method": "adaptive_local_mad",
+        "parameters": {
+            "window": 21,
+            "mad_threshold": 3.5,
+            "derivative_threshold": 6.0,
+            "min_mad": 0.03,
+            "mad_floor_ratio": 0.2,
+            "min_step_mad": 0.05,
+            "step_floor_ratio": 0.2,
+            "min_abs_step": 0.25,
+            "replacement": "interpolation",
+        },
+        "total_anomalies": adaptive_total_anomalies,
+        "zero_anomalies": adaptive_zero_anomalies,
+        "non_zero_anomalies": adaptive_non_zero_anomalies,
+        "anomaly_count": adaptive_total_anomalies,
+        "anomaly_rate": adaptive_total_anomalies / len(cleaned_data),
+        "compared_methods": anomaly_report,
+        "diagnostics_summary": {
+            "local_mad": summarize_diagnostic("local_mad"),
+            "step_mad": summarize_diagnostic("step_mad"),
+            "amplitude_score": summarize_diagnostic("amplitude_score"),
+            "derivative_score": summarize_diagnostic("derivative_score"),
+            "final_score": summarize_diagnostic("final_score"),
+        },
+        "r_and_d_conclusion_uk": (
+            "Запропонований Adaptive Local MAD Anomaly Detector є власним "
+            "алгоритмом виявлення аномалій для часових рядів. На відміну "
+            "від z-score та IQR, він не використовує глобальні статистики "
+            "всієї вибірки, а оцінює локальний тренд і локальний рівень "
+            "шуму у ковзному вікні. Це дозволяє враховувати "
+            "нестаціонарність, локальну волатильність та різкі зміни ряду."
+        ),
+    }
+    adaptive_anomaly_report_path.write_text(
+        json.dumps(adaptive_anomaly_report, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
     saved_figure = save_time_series_plot(
         cleaned_data,
         date_column=date_column,
@@ -245,6 +321,24 @@ def run_pipeline() -> dict[str, Any]:
         anomaly_mask=combined_anomaly_mask,
         output_path=anomalies_figure_path,
         title="Original Series with Combined Anomalies Highlighted",
+    )
+    saved_adaptive_anomalies_figure = save_anomalies_plot(
+        cleaned_data,
+        date_column=date_column,
+        value_column=value_column,
+        anomaly_mask=adaptive_anomaly_result.anomaly_mask,
+        output_path=adaptive_anomalies_figure_path,
+        title="Adaptive Local MAD Anomalies",
+    )
+    saved_anomaly_methods_comparison_figure = save_anomaly_methods_comparison_plot(
+        cleaned_data,
+        date_column=date_column,
+        value_column=value_column,
+        anomaly_masks={
+            method_name: result.anomaly_mask
+            for method_name, result in anomaly_results.items()
+        },
+        output_path=anomaly_methods_comparison_path,
     )
     saved_comparison_figure = save_cleaned_comparison_plot(
         original_data=cleaned_data,
@@ -419,12 +513,12 @@ def run_pipeline() -> dict[str, Any]:
             "R2": alpha_beta_one_step_metrics["R2"],
         },
         "conclusion": (
-            "Alpha-beta filter є простим рекурентним методом згладжування. "
-            "Він добре підходить для короткострокового прогнозування та "
-            "зменшення шуму, але менш ефективний для довгострокового прогнозу "
-            "нелінійних трендів. Recursive alpha-beta forecast накопичує "
-            "похибку через velocity drift, тоді як one-step режим краще "
-            "підходить для online-згладжування короткострокових змін."
+            "Alpha-beta filter С” РїСЂРѕСЃС‚РёРј СЂРµРєСѓСЂРµРЅС‚РЅРёРј РјРµС‚РѕРґРѕРј Р·РіР»Р°РґР¶СѓРІР°РЅРЅСЏ. "
+            "Р’С–РЅ РґРѕР±СЂРµ РїС–РґС…РѕРґРёС‚СЊ РґР»СЏ РєРѕСЂРѕС‚РєРѕСЃС‚СЂРѕРєРѕРІРѕРіРѕ РїСЂРѕРіРЅРѕР·СѓРІР°РЅРЅСЏ С‚Р° "
+            "Р·РјРµРЅС€РµРЅРЅСЏ С€СѓРјСѓ, Р°Р»Рµ РјРµРЅС€ РµС„РµРєС‚РёРІРЅРёР№ РґР»СЏ РґРѕРІРіРѕСЃС‚СЂРѕРєРѕРІРѕРіРѕ РїСЂРѕРіРЅРѕР·Сѓ "
+            "РЅРµР»С–РЅС–Р№РЅРёС… С‚СЂРµРЅРґС–РІ. Recursive alpha-beta forecast РЅР°РєРѕРїРёС‡СѓС” "
+            "РїРѕС…РёР±РєСѓ С‡РµСЂРµР· velocity drift, С‚РѕРґС– СЏРє one-step СЂРµР¶РёРј РєСЂР°С‰Рµ "
+            "РїС–РґС…РѕРґРёС‚СЊ РґР»СЏ online-Р·РіР»Р°РґР¶СѓРІР°РЅРЅСЏ РєРѕСЂРѕС‚РєРѕСЃС‚СЂРѕРєРѕРІРёС… Р·РјС–РЅ."
         ),
     }
     alpha_beta_metrics_path.parent.mkdir(parents=True, exist_ok=True)
@@ -639,35 +733,35 @@ def run_pipeline() -> dict[str, Any]:
             "model": best_online_model,
             "metrics": online_candidates[best_online_model],
             "recommendation": (
-                "Для короткострокового online-прогнозування доцільно обрати "
-                f"{best_online_model}, оскільки ця модель має найменший RMSE "
-                "на фінальному test-наборі серед one-step методів."
+                "Р”Р»СЏ РєРѕСЂРѕС‚РєРѕСЃС‚СЂРѕРєРѕРІРѕРіРѕ online-РїСЂРѕРіРЅРѕР·СѓРІР°РЅРЅСЏ РґРѕС†С–Р»СЊРЅРѕ РѕР±СЂР°С‚Рё "
+                f"{best_online_model}, РѕСЃРєС–Р»СЊРєРё С†СЏ РјРѕРґРµР»СЊ РјР°С” РЅР°Р№РјРµРЅС€РёР№ RMSE "
+                "РЅР° С„С–РЅР°Р»СЊРЅРѕРјСѓ test-РЅР°Р±РѕСЂС– СЃРµСЂРµРґ one-step РјРµС‚РѕРґС–РІ."
             ),
         },
         "global_polynomial": (
-            "Global polynomial гірше підходить для цього ряду, бо одна глобальна "
-            "крива погано адаптується до локальних змін курсу та дає нестабільний "
-            "довгостроковий прогноз."
+            "Global polynomial РіС–СЂС€Рµ РїС–РґС…РѕРґРёС‚СЊ РґР»СЏ С†СЊРѕРіРѕ СЂСЏРґСѓ, Р±Рѕ РѕРґРЅР° РіР»РѕР±Р°Р»СЊРЅР° "
+            "РєСЂРёРІР° РїРѕРіР°РЅРѕ Р°РґР°РїС‚СѓС”С‚СЊСЃСЏ РґРѕ Р»РѕРєР°Р»СЊРЅРёС… Р·РјС–РЅ РєСѓСЂСЃСѓ С‚Р° РґР°С” РЅРµСЃС‚Р°Р±С–Р»СЊРЅРёР№ "
+            "РґРѕРІРіРѕСЃС‚СЂРѕРєРѕРІРёР№ РїСЂРѕРіРЅРѕР·."
         ),
         "local_polynomial": (
-            "Local polynomial доцільний, коли в ряді є локальні тренди: модель "
-            "враховує останнє вікно спостережень і краще реагує на короткі зміни, "
-            "але потребує підбору window та degree."
+            "Local polynomial РґРѕС†С–Р»СЊРЅРёР№, РєРѕР»Рё РІ СЂСЏРґС– С” Р»РѕРєР°Р»СЊРЅС– С‚СЂРµРЅРґРё: РјРѕРґРµР»СЊ "
+            "РІСЂР°С…РѕРІСѓС” РѕСЃС‚Р°РЅРЅС” РІС–РєРЅРѕ СЃРїРѕСЃС‚РµСЂРµР¶РµРЅСЊ С– РєСЂР°С‰Рµ СЂРµР°РіСѓС” РЅР° РєРѕСЂРѕС‚РєС– Р·РјС–РЅРё, "
+            "Р°Р»Рµ РїРѕС‚СЂРµР±СѓС” РїС–РґР±РѕСЂСѓ window С‚Р° degree."
         ),
         "mlp": (
-            "MLP показав працездатний one-step прогноз на очищених даних, але "
-            "не став безумовно найкращим; його варто розглядати як додатковий "
-            "нелінійний метод у комплексі моделей."
+            "MLP РїРѕРєР°Р·Р°РІ РїСЂР°С†РµР·РґР°С‚РЅРёР№ one-step РїСЂРѕРіРЅРѕР· РЅР° РѕС‡РёС‰РµРЅРёС… РґР°РЅРёС…, Р°Р»Рµ "
+            "РЅРµ СЃС‚Р°РІ Р±РµР·СѓРјРѕРІРЅРѕ РЅР°Р№РєСЂР°С‰РёРј; Р№РѕРіРѕ РІР°СЂС‚Рѕ СЂРѕР·РіР»СЏРґР°С‚Рё СЏРє РґРѕРґР°С‚РєРѕРІРёР№ "
+            "РЅРµР»С–РЅС–Р№РЅРёР№ РјРµС‚РѕРґ Сѓ РєРѕРјРїР»РµРєСЃС– РјРѕРґРµР»РµР№."
         ),
         "alpha_beta": (
-            "Alpha-beta recursive накопичує похибку через velocity drift на довгому "
-            "горизонті, тоді як alpha-beta one-step добре підходить для "
-            "online-згладжування та короткострокового прогнозу."
+            "Alpha-beta recursive РЅР°РєРѕРїРёС‡СѓС” РїРѕС…РёР±РєСѓ С‡РµСЂРµР· velocity drift РЅР° РґРѕРІРіРѕРјСѓ "
+            "РіРѕСЂРёР·РѕРЅС‚С–, С‚РѕРґС– СЏРє alpha-beta one-step РґРѕР±СЂРµ РїС–РґС…РѕРґРёС‚СЊ РґР»СЏ "
+            "online-Р·РіР»Р°РґР¶СѓРІР°РЅРЅСЏ С‚Р° РєРѕСЂРѕС‚РєРѕСЃС‚СЂРѕРєРѕРІРѕРіРѕ РїСЂРѕРіРЅРѕР·Сѓ."
         ),
         "complex_method_recommendation": (
-            "Для практичного використання варто комбінувати очищення аномалій, "
-            "EMA або alpha-beta one-step для online-згладжування, local polynomial "
-            "для локальних трендів і MLP як додаткову перевірку нелінійних залежностей."
+            "Р”Р»СЏ РїСЂР°РєС‚РёС‡РЅРѕРіРѕ РІРёРєРѕСЂРёСЃС‚Р°РЅРЅСЏ РІР°СЂС‚Рѕ РєРѕРјР±С–РЅСѓРІР°С‚Рё РѕС‡РёС‰РµРЅРЅСЏ Р°РЅРѕРјР°Р»С–Р№, "
+            "EMA Р°Р±Рѕ alpha-beta one-step РґР»СЏ online-Р·РіР»Р°РґР¶СѓРІР°РЅРЅСЏ, local polynomial "
+            "РґР»СЏ Р»РѕРєР°Р»СЊРЅРёС… С‚СЂРµРЅРґС–РІ С– MLP СЏРє РґРѕРґР°С‚РєРѕРІСѓ РїРµСЂРµРІС–СЂРєСѓ РЅРµР»С–РЅС–Р№РЅРёС… Р·Р°Р»РµР¶РЅРѕСЃС‚РµР№."
         ),
     }
     model_recommendations_path.parent.mkdir(parents=True, exist_ok=True)
@@ -793,6 +887,9 @@ def run_pipeline() -> dict[str, Any]:
         "approximation_selection_figure": str(saved_approximation_selection_figure),
         "metrics": str(metrics_path),
         "anomaly_metrics": str(anomaly_report_path),
+        "adaptive_anomaly_report": str(adaptive_anomaly_report_path),
+        "adaptive_anomalies_figure": str(saved_adaptive_anomalies_figure),
+        "anomaly_methods_comparison_figure": str(saved_anomaly_methods_comparison_figure),
     }
 
 
@@ -804,3 +901,15 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-"""Run synthetic verification experiments for the forecasting pipeline."""
+﻿"""Run synthetic verification experiments for the forecasting pipeline."""
 
 from __future__ import annotations
 
@@ -35,6 +35,41 @@ def _json_ready(value: Any) -> Any:
     return value
 
 
+
+
+def _anomaly_classification_metrics(
+    injected_mask: Any,
+    detected_mask: Any,
+) -> dict[str, float | int]:
+    """Calculate anomaly-detection classification metrics for synthetic data."""
+    injected = injected_mask.astype(bool)
+    detected = detected_mask.astype(bool)
+    true_positives = int((injected & detected).sum())
+    false_positives = int((~injected & detected).sum())
+    false_negatives = int((injected & ~detected).sum())
+    precision = (
+        true_positives / (true_positives + false_positives)
+        if true_positives + false_positives > 0
+        else 0.0
+    )
+    recall = (
+        true_positives / (true_positives + false_negatives)
+        if true_positives + false_negatives > 0
+        else 0.0
+    )
+    f1 = (
+        2 * precision * recall / (precision + recall)
+        if precision + recall > 0
+        else 0.0
+    )
+    return {
+        "TP": true_positives,
+        "FP": false_positives,
+        "FN": false_negatives,
+        "precision": float(precision),
+        "recall": float(recall),
+        "F1": float(f1),
+    }
 def run_single_synthetic_experiment(trend_type: SyntheticTrendType) -> dict[str, Any]:
     """Run anomaly cleaning and forecasting for one synthetic trend type."""
     figure_path = (
@@ -103,10 +138,15 @@ def run_single_synthetic_experiment(trend_type: SyntheticTrendType) -> dict[str,
     )
 
     injected_mask = verification_data["is_injected_anomaly"].astype(bool)
+    anomaly_metrics_by_method = {
+        method_name: _anomaly_classification_metrics(
+            injected_mask,
+            result.anomaly_mask.astype(bool),
+        )
+        for method_name, result in anomaly_results.items()
+    }
     detected_mask = anomaly_results["rolling_median"].anomaly_mask.astype(bool)
-    true_positives = int((injected_mask & detected_mask).sum())
-    false_positives = int((~injected_mask & detected_mask).sum())
-    false_negatives = int((injected_mask & ~detected_mask).sum())
+    rolling_metrics = anomaly_metrics_by_method["rolling_median"]
 
     return {
         "config": {
@@ -120,9 +160,10 @@ def run_single_synthetic_experiment(trend_type: SyntheticTrendType) -> dict[str,
         "anomaly_detection": {
             "injected_anomaly_count": int(injected_mask.sum()),
             "rolling_median_detected_count": anomaly_results["rolling_median"].anomaly_count,
-            "true_positives": true_positives,
-            "false_positives": false_positives,
-            "false_negatives": false_negatives,
+            "true_positives": rolling_metrics["TP"],
+            "false_positives": rolling_metrics["FP"],
+            "false_negatives": rolling_metrics["FN"],
+            "metrics_by_method": anomaly_metrics_by_method,
             "all_methods": {
                 method_name: result.anomaly_count
                 for method_name, result in anomaly_results.items()
@@ -184,4 +225,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
 

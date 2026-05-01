@@ -361,3 +361,50 @@ def save_synthetic_verification_plot(
     plt.close(figure)
 
     return path
+
+
+def save_anomaly_methods_comparison_plot(
+    data: pd.DataFrame,
+    date_column: str,
+    value_column: str,
+    anomaly_masks: dict[str, pd.Series],
+    output_path: PathLike,
+    title: str = "Anomaly Methods Comparison",
+) -> Path:
+    """Save a compact comparison of anomaly masks from multiple detectors."""
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    method_names = list(anomaly_masks.keys())
+    figure, axes = plt.subplots(
+        nrows=len(method_names),
+        ncols=1,
+        figsize=(13, max(3, 2.4 * len(method_names))),
+        sharex=True,
+    )
+    if len(method_names) == 1:
+        axes = [axes]
+
+    for axis, method_name in zip(axes, method_names):
+        mask = anomaly_masks[method_name].astype(bool)
+        axis.plot(data[date_column], data[value_column], linewidth=1.1, color="steelblue")
+        anomalies = data.loc[mask]
+        axis.scatter(
+            anomalies[date_column],
+            anomalies[value_column],
+            color="crimson",
+            s=22,
+            zorder=3,
+        )
+        axis.set_title(f"{method_name}: {int(mask.sum())} anomalies")
+        axis.set_ylabel(value_column)
+        axis.grid(True, alpha=0.3)
+
+    axes[-1].set_xlabel("Date")
+    figure.suptitle(title)
+    figure.autofmt_xdate()
+    figure.tight_layout()
+    figure.savefig(path, dpi=150)
+    plt.close(figure)
+
+    return path

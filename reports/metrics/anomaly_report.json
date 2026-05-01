@@ -14,8 +14,13 @@
     "anomaly_rate": 0.1810344827586207,
     "replacement": "rolling_median"
   },
+  "adaptive_local_mad": {
+    "anomaly_count": 66,
+    "anomaly_rate": 0.1896551724137931,
+    "replacement": "interpolation"
+  },
   "primary_cleaning_method": "rolling_median",
-  "combined_anomaly_count": 63,
+  "combined_anomaly_count": 81,
   "value_column": "продаж",
   "rows": 348
 }

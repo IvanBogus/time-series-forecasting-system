@@ -1,4 +1,4 @@
-"""Anomaly detection and replacement methods for time series."""
+﻿"""Anomaly detection and replacement methods for time series."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ class AnomalyDetectionResult:
     anomaly_mask: pd.Series
     anomaly_count: int
     method: str
+    diagnostics: pd.DataFrame | None = None
 
 
 def _numeric_series(data: pd.DataFrame, value_column: str) -> pd.Series:
@@ -178,6 +179,126 @@ def detect_rolling_median_anomalies(
     )
 
 
+
+def _rolling_mad(
+    values: pd.Series,
+    center: pd.Series,
+    window: int,
+    floor: float,
+) -> pd.Series:
+    """Estimate local median absolute deviation around a supplied local center."""
+    absolute_deviation = (values - center).abs()
+    local_mad = absolute_deviation.rolling(
+        window=window,
+        center=True,
+        min_periods=1,
+    ).median()
+    fallback = float(absolute_deviation.median())
+    if fallback <= 0 or pd.isna(fallback):
+        fallback = float(absolute_deviation.mean())
+    if fallback <= 0 or pd.isna(fallback):
+        fallback = floor
+    return local_mad.fillna(fallback).clip(lower=floor)
+
+
+def detect_adaptive_local_mad_anomalies(
+    data: pd.DataFrame,
+    value_column: str,
+    window: int = 21,
+    mad_threshold: float = 3.5,
+    derivative_threshold: float = 6.0,
+    min_mad: float = 0.03,
+    mad_floor_ratio: float = 0.2,
+    min_step_mad: float = 0.05,
+    step_floor_ratio: float = 0.2,
+    min_abs_step: float = 0.25,
+    replacement: ReplacementStrategy = "interpolation",
+) -> AnomalyDetectionResult:
+    """Detect anomalies with an adaptive local MAD algorithm for time series.
+
+    This R&D detector estimates a local trend with a centered rolling median and
+    a local noise level with rolling MAD. Unlike global z-score/IQR rules, each
+    score is normalized by local variability, so the detector adapts to
+    non-stationarity, local volatility, and sudden changes in the sample.
+    """
+    if window < 3:
+        raise ValueError("Adaptive MAD window must be at least 3.")
+    if mad_threshold <= 0 or derivative_threshold <= 0:
+        raise ValueError("Adaptive MAD thresholds must be positive.")
+    if min_mad <= 0 or min_step_mad <= 0:
+        raise ValueError("MAD floors must be positive.")
+    if mad_floor_ratio < 0 or step_floor_ratio < 0:
+        raise ValueError("MAD floor ratios must not be negative.")
+    if min_abs_step < 0:
+        raise ValueError("min_abs_step must not be negative.")
+
+    prepared_data, zero_mask = _prepare_data_for_detection(data, value_column)
+    series = _numeric_series(prepared_data, value_column)
+
+    local_trend = _rolling_median(series, window)
+    absolute_deviation = (series - local_trend).abs()
+    global_mad = float(absolute_deviation.median())
+    if global_mad <= 0 or pd.isna(global_mad):
+        global_mad = float(absolute_deviation.mean())
+    if global_mad <= 0 or pd.isna(global_mad):
+        global_mad = min_mad
+    effective_min_mad = max(min_mad, mad_floor_ratio * global_mad)
+    local_mad = _rolling_mad(series, local_trend, window, effective_min_mad)
+    amplitude_score = absolute_deviation / local_mad
+    amplitude_anomaly = amplitude_score > mad_threshold
+
+    local_step = series.diff().abs().fillna(0.0)
+    typical_step = local_step.rolling(
+        window=window,
+        center=True,
+        min_periods=1,
+    ).median()
+    step_deviation = (local_step - typical_step).abs()
+    global_step_mad = float(step_deviation.median())
+    if global_step_mad <= 0 or pd.isna(global_step_mad):
+        global_step_mad = float(step_deviation.mean())
+    if global_step_mad <= 0 or pd.isna(global_step_mad):
+        global_step_mad = min_step_mad
+    effective_min_step_mad = max(min_step_mad, step_floor_ratio * global_step_mad)
+    step_mad = _rolling_mad(local_step, typical_step, window, effective_min_step_mad)
+    derivative_score = (local_step - typical_step).clip(lower=0.0) / step_mad
+    derivative_anomaly = (derivative_score > derivative_threshold) & (
+        local_step > min_abs_step
+    )
+    final_score = pd.concat([amplitude_score, derivative_score], axis=1).max(axis=1)
+
+    anomaly_mask = amplitude_anomaly | derivative_anomaly | zero_mask
+    cleaned = _replace_anomalies(prepared_data, value_column, anomaly_mask, replacement)
+    diagnostics = pd.DataFrame(
+        {
+            "local_trend": local_trend,
+            "local_mad": local_mad,
+            "effective_min_mad": effective_min_mad,
+            "amplitude_score": amplitude_score,
+            "amplitude_threshold": mad_threshold,
+            "local_step": local_step,
+            "typical_step": typical_step,
+            "step_mad": step_mad,
+            "effective_min_step_mad": effective_min_step_mad,
+            "derivative_score": derivative_score,
+            "derivative_threshold": derivative_threshold,
+            "min_abs_step": min_abs_step,
+            "final_score": final_score,
+            "amplitude_anomaly": amplitude_anomaly,
+            "derivative_anomaly": derivative_anomaly,
+            "zero_as_missing_anomaly": zero_mask,
+        },
+        index=data.index,
+    )
+
+    return AnomalyDetectionResult(
+        cleaned_data=cleaned,
+        anomaly_mask=anomaly_mask,
+        anomaly_count=int(anomaly_mask.sum()),
+        method="adaptive_local_mad",
+        diagnostics=diagnostics,
+    )
+
 def run_anomaly_detection(
     data: pd.DataFrame,
     value_column: str,
@@ -192,4 +313,16 @@ def run_anomaly_detection(
             value_column,
             window=rolling_window,
         ),
+        "adaptive_local_mad": detect_adaptive_local_mad_anomalies(
+            data,
+            value_column,
+            window=max(rolling_window * 3, 21),
+        ),
     }
+
+
+
+
+
+
+

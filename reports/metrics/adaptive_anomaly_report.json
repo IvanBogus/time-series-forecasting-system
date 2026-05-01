@@ -1,0 +1,98 @@
+{
+  "method": "adaptive_local_mad",
+  "parameters": {
+    "window": 21,
+    "mad_threshold": 3.5,
+    "derivative_threshold": 6.0,
+    "min_mad": 0.03,
+    "mad_floor_ratio": 0.2,
+    "min_step_mad": 0.05,
+    "step_floor_ratio": 0.2,
+    "min_abs_step": 0.25,
+    "replacement": "interpolation"
+  },
+  "total_anomalies": 66,
+  "zero_anomalies": 39,
+  "non_zero_anomalies": 27,
+  "anomaly_count": 66,
+  "anomaly_rate": 0.1896551724137931,
+  "compared_methods": {
+    "z_score": {
+      "anomaly_count": 39,
+      "anomaly_rate": 0.11206896551724138,
+      "replacement": "interpolation"
+    },
+    "iqr": {
+      "anomaly_count": 39,
+      "anomaly_rate": 0.11206896551724138,
+      "replacement": "interpolation"
+    },
+    "rolling_median": {
+      "anomaly_count": 63,
+      "anomaly_rate": 0.1810344827586207,
+      "replacement": "rolling_median"
+    },
+    "adaptive_local_mad": {
+      "anomaly_count": 66,
+      "anomaly_rate": 0.1896551724137931,
+      "replacement": "interpolation"
+    },
+    "primary_cleaning_method": "rolling_median",
+    "combined_anomaly_count": 81,
+    "value_column": "продаж",
+    "rows": 348
+  },
+  "diagnostics_summary": {
+    "local_mad": {
+      "min": 0.03,
+      "q25": 0.03,
+      "median": 0.03,
+      "q75": 0.10000000000000142,
+      "q90": 0.21200000000000196,
+      "q95": 0.34000000000000163,
+      "q99": 0.3500000000000014,
+      "max": 0.3500000000000014
+    },
+    "step_mad": {
+      "min": 0.05,
+      "q25": 0.05,
+      "median": 0.05,
+      "q75": 0.05,
+      "q90": 0.09999999999999432,
+      "q95": 0.10000000000000142,
+      "q99": 0.10000000000000142,
+      "max": 0.10999999999999943
+    },
+    "amplitude_score": {
+      "min": 0.0,
+      "q25": 0.0,
+      "median": 0.0,
+      "q75": 1.1488095238095213,
+      "q90": 2.699999999999952,
+      "q95": 3.9999999999995737,
+      "q99": 16.999999999999936,
+      "max": 36.9999999999995
+    },
+    "derivative_score": {
+      "min": 0.0,
+      "q25": 0.0,
+      "median": 0.0,
+      "q75": 0.9999999999999432,
+      "q90": 2.0599999999999627,
+      "q95": 4.999999999999858,
+      "q99": 20.107999999999905,
+      "max": 96.4
+    },
+    "final_score": {
+      "min": 0.0,
+      "q25": 0.0,
+      "median": 1.0,
+      "q75": 1.999999999999858,
+      "q90": 3.9999999999996163,
+      "q95": 7.650000000000404,
+      "q99": 20.95400000000001,
+      "max": 96.4
+    }
+  },
+  "r_and_d_conclusion_uk": "Запропонований Adaptive Local MAD Anomaly Detector є власним алгоритмом виявлення аномалій для часових рядів. На відміну від z-score та IQR, він не використовує глобальні статистики всієї вибірки, а оцінює локальний тренд і локальний рівень шуму у ковзному вікні. Це дозволяє враховувати нестаціонарність, локальну волатильність та різкі зміни ряду."
+}
