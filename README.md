@@ -1,173 +1,233 @@
-# Time Series Forecasting System
+﻿# Time Series Forecasting System
 
 ## Опис
 
-**Time Series Forecasting System** - навчальний проєкт для дисципліни **"Технології Data Science"**, виконаний у межах проектного практикуму за ЛР1-2. Проєкт реалізує повний pipeline аналізу та прогнозування часових рядів: від завантаження й очищення реальних даних до порівняння моделей, візуалізації результатів і верифікації на синтетичних рядах.
+**Time Series Forecasting System** — навчальний проєктний практикум за ЛР1,2 з дисципліни **"Технології Data Science"**.
 
-Основний приклад використання системи - часовий ряд курсу **Oschadbank USD**, на якому перевіряються методи попередньої обробки, виявлення аномалій, статистичного прогнозування, апроксимації, глибинного навчання та рекурентного згладжування.
+Проєкт реалізує відтворюваний pipeline для аналізу та прогнозування часових рядів: завантаження реальних даних, попередню обробку, базову аналітику, виявлення та очищення аномалій, прогнозування кількома групами методів, оцінювання якості моделей, формування рекомендацій і перевірку підходів на синтетичних даних.
 
-## Мета роботи
+Основний приклад — часовий ряд курсу **Oschadbank USD**.
 
-Метою проєкту є побудова відтворюваної системи для дослідження та прогнозування time series даних. У межах роботи потрібно:
+## Дані
 
-- дослідити реальні time series дані;
-- очистити дані від аномалій;
-- реалізувати прогнозування методами статистичного навчання, апроксимації та глибинного навчання;
-- оцінити якість моделей на відкладеній тестовій вибірці;
-- виконати верифікацію pipeline на синтетичних даних;
-- реалізувати рекурентне згладжування за допомогою alpha-beta filter.
+У проєкті використано часовий ряд **Oschadbank USD exchange rate**.
 
-## Використані дані
+Основні файли даних:
 
-У проєкті використано часовий ряд **Oschadbank USD exchange rate**:
+- raw data: [`data/raw/Oschadbank_USD.xls`](data/raw/Oschadbank_USD.xls);
+- processed data: [`data/processed/oschadbank_usd_clean.csv`](data/processed/oschadbank_usd_clean.csv);
+- anomaly-cleaned data: [`data/processed/oschadbank_usd_cleaned_anomalies.csv`](data/processed/oschadbank_usd_cleaned_anomalies.csv).
 
-- сирі дані: [`data/raw/Oschadbank_USD.xls`](data/raw/Oschadbank_USD.xls);
-- очищені дані: [`data/processed/oschadbank_usd_clean.csv`](data/processed/oschadbank_usd_clean.csv);
-- дані після обробки аномалій: [`data/processed/oschadbank_usd_cleaned_anomalies.csv`](data/processed/oschadbank_usd_cleaned_anomalies.csv).
+Нульові значення валютного курсу трактуються як некоректні виміри або пропуски, оскільки реальний курс валюти не може дорівнювати `0`.
 
-Нульові значення в ряді трактуються як пропуски або аномальні спостереження, оскільки курс валют не може дорівнювати `0`. Такі значення мають бути виявлені та оброблені перед побудовою моделей.
+## Що реалізує pipeline
+
+Основний pipeline у [`scripts/run_pipeline.py`](scripts/run_pipeline.py) виконує такі етапи:
+
+- loading: завантаження Excel-файлу з реальними даними;
+- preprocessing: нормалізація назв колонок, парсинг дат, сортування за часом, обробка пропусків;
+- basic statistics / EDA: базові статистики та графік вихідного ряду;
+- anomaly detection and cleaning: z-score, IQR, rolling median та R&D adaptive detector;
+- forecasting: baseline, polynomial/local polynomial, MA/EMA, MLP, alpha-beta filter;
+- model evaluation: MAE, RMSE, MAPE, R2;
+- recommendations: рекомендації щодо доцільності використання моделей;
+- synthetic verification: перевірка на синтетичних рядах linear/quadratic/exponential.
+
+Основні результати зберігаються в:
+
+- [`reports/metrics/`](reports/metrics/);
+- [`reports/figures/`](reports/figures/).
+
+## R&D component for Task IV, item 5.1
+
+Для пункту 5 проектного практикуму було обрано **пункт 5.1**:
+
+> розробити власний алгоритм виявлення аномальних вимірів та/або навчання параметрів відомих алгоритмів, який бачить властивості статистичної вибірки.
+
+У проєкті реалізовано власний **Adaptive Local MAD Anomaly Detector**. Реалізація знаходиться у [`src/anomaly_detection.py`](src/anomaly_detection.py), основна функція — `detect_adaptive_local_mad_anomalies`.
+
+Це не простий z-score/IQR detector і не виклик готового stock-алгоритму. Метод використовує власну комбінацію локальних robust-статистик:
+
+- `local_trend` через rolling median;
+- `local_mad` як локальну robust-оцінку шуму;
+- `amplitude_score` для оцінки відхилення від локального тренду;
+- `derivative_score` для оцінки нетипових локальних стрибків;
+- `final_score` як діагностичний інтегральний score;
+- robust floors для MAD та step MAD, щоб уникнути division by tiny value на стабільних ділянках;
+- zero/non-zero diagnostics для розділення нульових помилкових вимірів і ненульових аномалій;
+- synthetic verification з TP/FP/FN, precision, recall, F1.
+
+Метод порівнюється зі стандартними anomaly detection підходами:
+
+- `z_score`;
+- `iqr`;
+- `rolling_median`;
+- `adaptive_local_mad`.
+
+### Фактичні результати adaptive detector
+
+За результатами поточного запуску на real data:
+
+```text
+total_anomalies:    66
+zero_anomalies:     39
+non_zero_anomalies: 27
+```
+
+Перевірка фінального очищеного ряду:
+
+```text
+final_cleaned_value missing: 0
+final_cleaned_value zeros:   0
+```
+
+Synthetic verification для `adaptive_local_mad`:
+
+```text
+linear F1:      0.5926
+quadratic F1:   0.6486
+exponential F1: 0.5455
+```
+
+Ці результати не є твердженням про універсальну перевагу adaptive detector над усіма іншими методами. Вони показують, що R&D-компонент має окрему реалізацію, діагностику, порівняння зі стандартними методами та перевірку на синтетичних даних.
+
+### R&D artifacts
+
+Основні артефакти R&D-частини:
+
+- [`reports/metrics/adaptive_anomaly_report.json`](reports/metrics/adaptive_anomaly_report.json);
+- [`reports/metrics/synthetic_verification.json`](reports/metrics/synthetic_verification.json);
+- [`reports/figures/adaptive_anomalies_detected.png`](reports/figures/adaptive_anomalies_detected.png);
+- [`reports/figures/anomaly_methods_comparison.png`](reports/figures/anomaly_methods_comparison.png).
 
 ## Реалізовані методи
 
-### Preprocessing
+### Preprocessing та EDA
 
-Модуль попередньої обробки відповідає за підготовку ряду до аналізу: завантаження даних, приведення значень до числового формату, обробку пропусків, очищення некоректних значень і формування підготовленого часового ряду для подальших етапів.
+Файли:
 
-Основні файли:
+- [`src/data_loader.py`](src/data_loader.py);
+- [`src/preprocessing.py`](src/preprocessing.py);
+- [`src/statistics.py`](src/statistics.py).
 
-- [`src/data_loader.py`](src/data_loader.py)
-- [`src/preprocessing.py`](src/preprocessing.py)
-- [`src/statistics.py`](src/statistics.py)
+Реалізовано завантаження Excel-даних, нормалізацію колонок, парсинг дат, сортування ряду, обробку пропусків і базові статистики.
 
-### Anomaly Detection
+### Anomaly detection
 
-У системі реалізовано виявлення аномалій у часовому ряді, зокрема некоректних нульових значень та різких відхилень. Для аналізу використовуються статистичні підходи, зокрема rolling median, z-score та IQR-перевірки.
+Файл:
 
-Основні файли:
+- [`src/anomaly_detection.py`](src/anomaly_detection.py).
 
-- [`src/anomaly_detection.py`](src/anomaly_detection.py)
-- [`reports/metrics/anomaly_report.json`](reports/metrics/anomaly_report.json)
+Реалізовані методи:
 
-### Statistical Learning
+- `z_score`;
+- `iqr`;
+- `rolling_median`;
+- `adaptive_local_mad` як R&D-компонент для пункту 5.1.
 
-Статистичні baseline-моделі використовуються як практична основа для порівняння складніших методів:
+Звіти:
 
-- `naive_one_step`
-- `naive_recursive`
-- `moving_average_one_step`
-- `moving_average_recursive`
-- `exponential_moving_average_one_step`
-- `exponential_moving_average_recursive`
+- [`reports/metrics/anomaly_report.json`](reports/metrics/anomaly_report.json);
+- [`reports/metrics/adaptive_anomaly_report.json`](reports/metrics/adaptive_anomaly_report.json).
 
-Ці моделі важливі для розуміння того, чи справді складніші підходи покращують прогноз порівняно з простими короткостроковими стратегіями.
+### Statistical learning та baseline-моделі
 
-Основний файл:
+Файли:
 
-- [`src/models/baseline.py`](src/models/baseline.py)
+- [`src/models/baseline.py`](src/models/baseline.py);
+- [`src/models/polynomial.py`](src/models/polynomial.py).
 
-### Approximation Methods
+Реалізовано naive one-step/recursive baseline, global polynomial та local polynomial моделі. Global polynomial залишено як порівняльний метод; за наявними метриками він працює погано на цьому нестаціонарному валютному ряді.
 
-Для апроксимації ряду реалізовано поліноміальні моделі:
+### Approximation methods
 
-- `global_polynomial`
-- `local_polynomial`
-- `local_polynomial_one_step`
-- `local_polynomial_recursive`
+Файл:
 
-Глобальна поліноміальна модель підбирає одну криву для всього ряду, тоді як локальні моделі працюють із вікном останніх спостережень і краще враховують короткострокові зміни.
+- [`src/models/approximation.py`](src/models/approximation.py).
 
-Основні файли:
+Реалізовано:
 
-- [`src/models/polynomial.py`](src/models/polynomial.py)
-- [`src/models/approximation.py`](src/models/approximation.py)
+- moving average;
+- exponential moving average;
+- recursive та one-step режими;
+- підбір параметрів на validation split.
 
-### Deep Learning
+### Deep learning
 
-Для нелінійного прогнозування використано MLP-модель:
+Файл:
 
-- `deep_learning_mlp_one_step`
+- [`src/models/deep_learning.py`](src/models/deep_learning.py).
 
-За метриками з [`reports/metrics/forecast_metrics.json`](reports/metrics/forecast_metrics.json), модель працює у one-step режимі з оновленням історії фактичними значеннями.
+Реалізовано MLP-based one-step forecasting зі sliding window. MLP використовується як deep learning метод прогнозування, але не подається як власний R&D-алгоритм.
 
-Основний файл:
+### Alpha-beta filter
 
-- [`src/models/deep_learning.py`](src/models/deep_learning.py)
+Файл:
 
-### Alpha-Beta Filter
+- [`src/models/alpha_beta_filter.py`](src/models/alpha_beta_filter.py).
 
-Реалізовано alpha-beta filter для рекурентного згладжування та короткострокового прогнозування:
+Реалізовано:
 
-- `alpha_beta_recursive`
-- `alpha_beta_one_step`
+- `alpha_beta_recursive`;
+- `alpha_beta_one_step`;
+- підбір `alpha` та `beta` на validation split.
 
-За [`reports/metrics/alpha_beta_metrics.json`](reports/metrics/alpha_beta_metrics.json), підібрані параметри становлять `alpha = 0.9`, `beta = 0.001`, горизонт прогнозу - `70` точок.
+Звіт:
 
-Основний файл:
+- [`reports/metrics/alpha_beta_metrics.json`](reports/metrics/alpha_beta_metrics.json).
 
-- [`src/models/alpha_beta_filter.py`](src/models/alpha_beta_filter.py)
+### Synthetic verification
 
-### Synthetic Verification
+Файли:
 
-Окремо реалізовано перевірку pipeline на синтетичних рядах із різними типами тренду:
+- [`src/synthetic.py`](src/synthetic.py);
+- [`scripts/run_synthetic_experiment.py`](scripts/run_synthetic_experiment.py).
+
+Синтетична перевірка використовує три типи трендів:
 
 - linear;
 - quadratic;
 - exponential.
 
-Синтетична верифікація перевіряє, чи здатна система виявляти додані аномалії та відновлювати відомий тренд. Метрики з [`reports/metrics/synthetic_verification.json`](reports/metrics/synthetic_verification.json) показують, що `local_polynomial_one_step` добре відтворює синтетичні тренди: для quadratic-ряду RMSE становить `0.0495`, R2 - `0.9997`.
+Для anomaly detection зберігаються TP/FP/FN, precision, recall і F1 для `z_score`, `iqr`, `rolling_median`, `adaptive_local_mad`.
 
-Основні файли:
+## Основні результати прогнозування
 
-- [`src/synthetic.py`](src/synthetic.py)
-- [`scripts/run_synthetic_experiment.py`](scripts/run_synthetic_experiment.py)
+Оцінювання виконано на хронологічному поділі `70/10/20`: train, validation, test. Підбір параметрів виконується на train/validation, фінальна оцінка — на test.
 
-## Основні результати
+Ключові метрики зберігаються у [`reports/metrics/forecast_metrics.json`](reports/metrics/forecast_metrics.json).
 
-Оцінювання виконано на хронологічному поділі даних `70/10/20`: train - `243` спостереження, validation - `35`, test - `70`. Підбір параметрів виконувався на train/validation, фінальна оцінка - тільки на test.
+Стислий висновок за поточними результатами:
 
-### Порівняння моделей на test-наборі
-
-| Модель | MAE | RMSE | MAPE | R2 |
-|---|---:|---:|---:|---:|
-| `naive_one_step` | 0.0334 | 0.0581 | 0.0821 | 0.8968 |
-| `exponential_moving_average_one_step` | 0.0436 | 0.0648 | 0.1071 | 0.8718 |
-| `moving_average_one_step` | 0.0489 | 0.0705 | 0.1201 | 0.8482 |
-| `alpha_beta_one_step` | 0.0503 | 0.0647 | 0.1236 | 0.8721 |
-| `deep_learning_mlp_one_step` | 0.0613 | 0.0827 | 0.1507 | 0.7911 |
-| `local_polynomial_one_step` | 0.0671 | 0.0847 | 0.1648 | 0.7810 |
-| `naive_recursive` | 0.1986 | 0.2334 | 0.4867 | -0.6641 |
-| `moving_average_recursive` | 0.1986 | 0.2334 | 0.4867 | -0.6641 |
-| `exponential_moving_average_recursive` | 0.2004 | 0.2363 | 0.4912 | -0.7061 |
-| `alpha_beta_recursive` | 0.7768 | 0.8845 | 1.9069 | -22.9028 |
-| `local_polynomial` | 2.3397 | 2.8679 | 5.7397 | -250.2862 |
-| `local_polynomial_recursive` | 2.6049 | 3.0506 | 6.3881 | -283.3216 |
-| `global_polynomial` | 6.3391 | 7.5841 | 15.5484 | -1756.3581 |
-
-### Висновки за результатами
-
-- Найкращий простий one-step baseline на test-наборі - `naive_one_step` з RMSE `0.0581`.
-- Серед online-згладжувальних методів [`reports/metrics/model_recommendations.json`](reports/metrics/model_recommendations.json) рекомендує `alpha_beta_one_step`; його RMSE становить `0.0647`, R2 - `0.8721`.
-- `exponential_moving_average_one_step` має близьку якість: RMSE `0.0648`, MAE `0.0436`.
-- Recursive-методи можуть накопичувати похибку, оскільки наступні кроки будуються на попередніх прогнозах, а не на фактичних значеннях.
-- `global_polynomial` погано працює на цьому нестаціонарному ряді: одна глобальна крива не адаптується до локальних змін курсу.
-- `deep_learning_mlp_one_step` є працездатним нелінійним методом, але за наявними метриками не перевершує найкращі короткострокові one-step підходи.
-- Synthetic verification підтверджує працездатність pipeline на рядах із відомим трендом і контрольовано доданими аномаліями.
+- `naive_one_step` має найменший RMSE серед протестованих методів на final test split: `0.0581`.
+- `alpha_beta_one_step` та `exponential_moving_average_one_step` мають близьку якість і можуть бути корисними для online-згладжування.
+- Recursive-методи накопичують похибку на довшому горизонті.
+- `global_polynomial` працює погано на цьому ряді, тому його варто розглядати як baseline/контрастний приклад, а не як рекомендований метод.
+- `deep_learning_mlp_one_step` працює працездатно, але не перевершує найкращі короткострокові one-step підходи на цьому наборі даних.
 
 ## Приклади графіків
 
-### Очищений та оригінальний ряд
+### Original series with anomalies
+
+![Anomalies Detected](reports/figures/anomalies_detected.png)
+
+### Adaptive Local MAD anomalies
+
+![Adaptive Anomalies](reports/figures/adaptive_anomalies_detected.png)
+
+### Anomaly methods comparison
+
+![Anomaly Methods Comparison](reports/figures/anomaly_methods_comparison.png)
+
+### Cleaned vs Original
 
 ![Cleaned vs Original](reports/figures/cleaned_vs_original.png)
 
-### Порівняння найкращих прогнозів
+### Forecast comparison
 
 ![Forecast Comparison Best](reports/figures/forecast_comparison_best.png)
 
-### Alpha-Beta прогноз
-
-![Alpha-Beta Forecast](reports/figures/alpha_beta_forecast.png)
-
-### Синтетична верифікація: quadratic trend
+### Synthetic quadratic verification
 
 ![Synthetic Quadratic Verification](reports/figures/synthetic_quadratic_verification.png)
 
@@ -176,26 +236,27 @@
 ```text
 .
 |-- data/
-|   |-- raw/                  # Сирі дані Oschadbank USD
-|   `-- processed/            # Очищені та підготовлені дані
+|   |-- raw/                  # сирі дані Oschadbank USD
+|   `-- processed/            # оброблені та очищені дані
 |-- src/
-|   |-- data_loader.py        # Завантаження даних
-|   |-- preprocessing.py      # Попередня обробка
-|   |-- anomaly_detection.py  # Виявлення аномалій
-|   |-- statistics.py         # Базова статистика та EDA
-|   |-- synthetic.py          # Генерація синтетичних рядів
-|   |-- evaluation.py         # Метрики оцінювання
+|   |-- data_loader.py        # завантаження даних
+|   |-- preprocessing.py      # попередня обробка
+|   |-- anomaly_detection.py  # anomaly detection, включно з adaptive_local_mad
+|   |-- statistics.py         # базова статистика / EDA
+|   |-- synthetic.py          # генерація синтетичних рядів
+|   |-- evaluation.py         # метрики оцінювання
+|   |-- visualization.py      # побудова графіків
 |   `-- models/
-|       |-- baseline.py       # Naive, MA, EMA
-|       |-- polynomial.py     # Поліноміальні моделі
-|       |-- approximation.py  # Апроксимаційні методи
-|       |-- deep_learning.py  # MLP-модель
+|       |-- baseline.py
+|       |-- polynomial.py
+|       |-- approximation.py
+|       |-- deep_learning.py
 |       `-- alpha_beta_filter.py
 |-- scripts/
 |   |-- run_pipeline.py
 |   `-- run_synthetic_experiment.py
 |-- reports/
-|   |-- figures/              # PNG-візуалізації
+|   |-- figures/              # PNG-графіки
 |   `-- metrics/              # JSON-метрики та звіти
 |-- requirements.txt
 `-- README.md
@@ -215,7 +276,7 @@ pip install -r requirements.txt
 python scripts/run_pipeline.py
 ```
 
-Запустити синтетичний експеримент:
+Запустити synthetic verification:
 
 ```bash
 python scripts/run_synthetic_experiment.py
@@ -223,29 +284,30 @@ python scripts/run_synthetic_experiment.py
 
 Після запуску результати зберігаються в:
 
-- [`reports/figures/`](reports/figures/)
-- [`reports/metrics/`](reports/metrics/)
+- [`reports/figures/`](reports/figures/);
+- [`reports/metrics/`](reports/metrics/).
 
 ## Покриття вимог практикуму
 
 | Вимога | Де реалізовано | Статус |
 |---|---|---|
-| Реальні time series дані | `data/raw/Oschadbank_USD.xls`, `src/data_loader.py` | Реалізовано |
-| EDA та базова статистика | `src/statistics.py`, `reports/metrics/basic_statistics.json`, `reports/figures/oschadbank_usd_series.png` | Реалізовано |
-| Anomaly cleaning | `src/anomaly_detection.py`, `reports/metrics/anomaly_report.json`, `reports/figures/anomalies_detected.png` | Реалізовано |
-| Statistical learning | `src/models/baseline.py`, `reports/metrics/forecast_metrics.json` | Реалізовано |
-| Approximation | `src/models/polynomial.py`, `src/models/approximation.py`, `reports/figures/approximation_selection.png` | Реалізовано |
-| Deep learning | `src/models/deep_learning.py`, `reports/figures/deep_learning_forecast.png` | Реалізовано |
-| Alpha-beta filter | `src/models/alpha_beta_filter.py`, `reports/metrics/alpha_beta_metrics.json`, `reports/figures/alpha_beta_forecast.png` | Реалізовано |
-| Model evaluation | `src/evaluation.py`, `reports/metrics/forecast_metrics.json` | Реалізовано |
-| Synthetic verification | `src/synthetic.py`, `scripts/run_synthetic_experiment.py`, `reports/metrics/synthetic_verification.json` | Реалізовано |
-| Recommendations | `reports/metrics/model_recommendations.json` | Реалізовано |
+| Реальні time series дані | `data/raw/Oschadbank_USD.xls`, `src/data_loader.py` | реалізовано |
+| EDA / базова статистика | `src/statistics.py`, `reports/metrics/basic_statistics.json`, `reports/figures/oschadbank_usd_series.png` | реалізовано |
+| Anomaly cleaning | `src/anomaly_detection.py`, `reports/metrics/anomaly_report.json`, `data/processed/oschadbank_usd_cleaned_anomalies.csv` | реалізовано |
+| Statistical learning | `src/models/baseline.py`, `src/models/polynomial.py`, `reports/metrics/forecast_metrics.json` | реалізовано |
+| Approximation | `src/models/approximation.py`, `reports/figures/approximation_selection.png` | реалізовано |
+| Deep learning | `src/models/deep_learning.py`, `reports/figures/deep_learning_forecast.png` | реалізовано |
+| Alpha-beta filter | `src/models/alpha_beta_filter.py`, `reports/metrics/alpha_beta_metrics.json`, `reports/figures/alpha_beta_forecast.png` | реалізовано |
+| Synthetic verification | `src/synthetic.py`, `scripts/run_synthetic_experiment.py`, `reports/metrics/synthetic_verification.json` | реалізовано |
+| Recommendations | `reports/metrics/model_recommendations.json` | реалізовано |
+| Task IV item 5.1 / R&D anomaly detector | `detect_adaptive_local_mad_anomalies`, `reports/metrics/adaptive_anomaly_report.json` | реалізовано |
+| Task IV item 5.2 / nonlinear-in-parameters власна модель | не обиралось | не реалізовувалось, бо для пункту 5 було обрано 5.1 |
 
 ## English Summary
 
-**Time Series Forecasting System** is an educational Data Science project for time series analysis and forecasting. It uses real Oschadbank USD exchange rate data and implements preprocessing, anomaly detection, statistical baselines, polynomial approximation, an MLP-based deep learning model, alpha-beta filtering, model evaluation, and synthetic verification.
+**Time Series Forecasting System** is an educational Data Science project for Lab Work 1-2 project practice. It uses real Oschadbank USD exchange-rate time series data and implements preprocessing, basic EDA, anomaly detection and cleaning, forecasting, model evaluation, recommendations, and synthetic verification.
 
-The project compares one-step and recursive forecasting strategies. On the final test split, the strongest simple one-step baseline is `naive_one_step` with RMSE `0.0581`. Among online smoothing methods, `alpha_beta_one_step` is recommended in the generated model recommendations and achieves RMSE `0.0647` with R2 `0.8721`. Recursive methods show error accumulation on longer horizons, while the global polynomial model performs poorly on this non-stationary exchange-rate series.
+For Task IV item 5, the project implements item **5.1**: a custom Adaptive Local MAD anomaly detector. The method is not claimed to be universally best; it is an R&D component based on local robust statistics, amplitude and derivative scores, diagnostic `final_score`, and synthetic verification.
 
 To run the project:
 
@@ -256,3 +318,4 @@ python scripts/run_synthetic_experiment.py
 ```
 
 Generated metrics and figures are stored in `reports/metrics/` and `reports/figures/`.
+
