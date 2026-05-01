@@ -301,7 +301,6 @@ python scripts/run_synthetic_experiment.py
 | Synthetic verification | `src/synthetic.py`, `scripts/run_synthetic_experiment.py`, `reports/metrics/synthetic_verification.json` | реалізовано |
 | Recommendations | `reports/metrics/model_recommendations.json` | реалізовано |
 | Task IV item 5.1 / R&D anomaly detector | `detect_adaptive_local_mad_anomalies`, `reports/metrics/adaptive_anomaly_report.json` | реалізовано |
-| Task IV item 5.2 / nonlinear-in-parameters власна модель | не обиралось | не реалізовувалось, бо для пункту 5 було обрано 5.1 |
 
 ## English Summary
 
